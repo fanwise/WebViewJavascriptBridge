@@ -28,6 +28,7 @@ typedef NSDictionary WVJBMessage;
 @property (strong, nonatomic) NSMutableDictionary* responseCallbacks;
 @property (strong, nonatomic) NSMutableDictionary* messageHandlers;
 @property (strong, nonatomic) WVJBHandler messageHandler;
+@property (strong, nonatomic) WVJBHandler logMessageHandler;
 
 + (void)enableLogging;
 + (void)setLogMaxLength:(int)length;
@@ -42,5 +43,7 @@ typedef NSDictionary WVJBMessage;
 - (NSString *)webViewJavascriptCheckCommand;
 - (NSString *)webViewJavascriptFetchQueyCommand;
 - (void)disableJavscriptAlertBoxSafetyTimeout;
+- (void)setLogHelper:(WVJBHandler)handler;
+- (void)_log:(NSString *)action json:(id)json;
 
 @end

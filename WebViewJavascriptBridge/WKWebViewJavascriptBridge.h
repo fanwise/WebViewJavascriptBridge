@@ -28,6 +28,7 @@
 - (void)reset;
 - (void)setWebViewDelegate:(id)webViewDelegate;
 - (void)disableJavscriptAlertBoxSafetyTimeout;
+- (void)setLogHelper:(WVJBHandler)handler;
 
 @end
 

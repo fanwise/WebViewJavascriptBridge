@@ -62,18 +62,25 @@ static int logMaxLength = 500;
 }
 
 - (void)flushMessageQueue:(NSString *)messageQueueString{
+    WVJBMessage* msg1 = @{ @"event":@"flushMessageQueue", @"error":@"false" };
+    [self _log:@"track" json:msg1];
     if (messageQueueString == nil || messageQueueString.length == 0) {
+        WVJBMessage* msg2 = @{ @"event":@"flushMessageQueueMessageNil", @"error":@"true" };
+        [self _log:@"track" json:msg2];
         NSLog(@"WebViewJavascriptBridge: WARNING: ObjC got nil while fetching the message queue JSON from webview. This can happen if the WebViewJavascriptBridge JS is not currently present in the webview, e.g if the webview just loaded a new page.");
         return;
     }
-
+    
     id messages = [self _deserializeMessageJSON:messageQueueString];
     for (WVJBMessage* message in messages) {
         if (![message isKindOfClass:[WVJBMessage class]]) {
+            WVJBMessage* msg3 = @{ @"event":@"flushMessageQueueMessageInvalid", @"error":@"true" };
+            [self _log:@"track" json:msg3];
             NSLog(@"WebViewJavascriptBridge: WARNING: Invalid %@ received: %@", [message class], message);
             continue;
         }
-        [self _log:@"RCVD" json:message];
+        NSString *messageJSON = [self _serializeMessage:message pretty:NO];
+        [self _log:@"RCVD" json:messageJSON];
         
         NSString* responseId = message[@"responseId"];
         if (responseId) {
@@ -93,6 +100,8 @@ static int logMaxLength = 500;
                     [self _queueMessage:msg];
                 };
             } else {
+                WVJBMessage* msg5 = @{ @"event":@"flushMessageQueueDoNothing", @"error":@"true" };
+                [self _log:@"track" json:msg5];
                 responseCallback = ^(id ignoreResponseData) {
                     // Do nothing
                 };
@@ -101,16 +110,22 @@ static int logMaxLength = 500;
             WVJBHandler handler = self.messageHandlers[message[@"handlerName"]];
             
             if (!handler) {
+                WVJBMessage* msg6 = @{ @"event":@"flushMessageQueueNoHandler", @"error":@"true" };
+                [self _log:@"track" json:msg6];
                 NSLog(@"WVJBNoHandlerException, No handler for message from JS: %@", message);
                 continue;
             }
             
+            WVJBMessage* msg7 = @{ @"event":@"flushMessageQueueEnd", @"error":@"false" };
+            [self _log:@"track" json:msg7];
             handler(message[@"data"], responseCallback);
         }
     }
 }
 
 - (void)injectJavascriptFile {
+    WVJBMessage* msg = @{ @"event":@"injectJavascriptFile", @"error":@"false" };
+    [self _log:@"track" json:msg];
     NSString *js = WebViewJavascriptBridge_js();
     [self _evaluateJavascript:js];
     if (self.startupMessageQueue) {
@@ -145,6 +160,8 @@ static int logMaxLength = 500;
 }
 
 - (void)logUnkownMessage:(NSURL*)url {
+    WVJBMessage* msg = @{ @"event":@"logUnkownMessage", @"error":@"true" };
+    [self _log:@"track" json:msg];
     NSLog(@"WebViewJavascriptBridge: WARNING: Received unknown WebViewJavascriptBridge command %@", [url absoluteString]);
 }
 
@@ -160,6 +177,10 @@ static int logMaxLength = 500;
     [self sendData:nil responseCallback:nil handlerName:@"_disableJavascriptAlertBoxSafetyTimeout"];
 }
 
+- (void)setLogHelper:(WVJBHandler)handler {
+    _logMessageHandler = handler;
+}
+
 // Private
 // -------------------------------------------
 
@@ -168,6 +189,8 @@ static int logMaxLength = 500;
 }
 
 - (void)_queueMessage:(WVJBMessage*)message {
+    WVJBMessage* msg = @{ @"event":@"_queueMessage", @"error":@"false" };
+    [self _log:@"track" json:msg];
     if (self.startupMessageQueue) {
         [self.startupMessageQueue addObject:message];
     } else {
@@ -176,6 +199,8 @@ static int logMaxLength = 500;
 }
 
 - (void)_dispatchMessage:(WVJBMessage*)message {
+    WVJBMessage* msg = @{ @"event":@"_dispatchMessage", @"error":@"false" };
+    [self _log:@"track" json:msg];
     NSString *messageJSON = [self _serializeMessage:message pretty:NO];
     [self _log:@"SEND" json:messageJSON];
     messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
@@ -207,14 +232,26 @@ static int logMaxLength = 500;
 }
 
 - (void)_log:(NSString *)action json:(id)json {
-    if (!logging) { return; }
-    if (![json isKindOfClass:[NSString class]]) {
-        json = [self _serializeMessage:json pretty:YES];
-    }
-    if ([json length] > logMaxLength) {
-        NSLog(@"WVJB %@: %@ [...]", action, [json substringToIndex:logMaxLength]);
+    if (action == @"track") {
+        WVJBMessage* msg = @{ @"track":json };
+        WVJBResponseCallback responseCallback = NULL;
+        _logMessageHandler(msg, responseCallback);
     } else {
-        NSLog(@"WVJB %@: %@", action, json);
+        if (![json isKindOfClass:[NSString class]]) {
+            json = [self _serializeMessage:json pretty:YES];
+        }
+        NSString *logMessage = @"";
+        
+        if ([json length] > logMaxLength) {
+            logMessage = [NSString stringWithFormat:@"WVJB %@: %@ [...]", action, [json substringToIndex:logMaxLength]];
+        } else {
+            logMessage = [NSString stringWithFormat:@"WVJB %@: %@", action, json];
+        }
+        if (_logMessageHandler != NULL) {
+            WVJBMessage* msg = @{ @"message":logMessage };
+            WVJBResponseCallback responseCallback = NULL;
+            _logMessageHandler(msg, responseCallback);
+        }
     }
 }
 

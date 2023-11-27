@@ -69,6 +69,10 @@
     [_base disableJavscriptAlertBoxSafetyTimeout];
 }
 
+- (void)setLogHelper:(WVJBHandler)handler {
+    [_base setLogHelper:handler];
+}
+
 /* Internals
  ***********/
 
@@ -92,8 +96,13 @@
 
 
 - (void)WKFlushMessageQueue {
+    WVJBMessage* msg = @{ @"event":@"WKFlushMessageQueue", @"error":@"false" };
+    [_base _log:@"track" json:msg];
+    
     [_webView evaluateJavaScript:[_base webViewJavascriptFetchQueyCommand] completionHandler:^(NSString* result, NSError* error) {
         if (error != nil) {
+            WVJBMessage* msg = @{ @"event":@"WKFlushMessageQueueevaluateJavaScript", @"error":@"true" };
+            [self->_base _log:@"track" json:msg];
             NSLog(@"WebViewJavascriptBridge: WARNING: Error when trying to fetch data from WKWebView: %@", error);
         }
         [self->_base flushMessageQueue:result];
@@ -134,6 +143,8 @@
 }
 
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
+    WVJBMessage* msg = @{ @"event":@"decidePolicyForNavigationAction", @"error":@"false" };
+    [_base _log:@"track" json:msg];
     if (webView != _webView) { return; }
     NSURL *url = navigationAction.request.URL;
     __strong typeof(_webViewDelegate) strongDelegate = _webViewDelegate;
@@ -151,8 +162,12 @@
     }
     
     if (strongDelegate && [strongDelegate respondsToSelector:@selector(webView:decidePolicyForNavigationAction:decisionHandler:)]) {
+        WVJBMessage* msg1 = @{ @"event":@"webViewdecidePolicyForNavigationAction", @"error":@"false" };
+        [_base _log:@"track" json:msg1];
         [_webViewDelegate webView:webView decidePolicyForNavigationAction:navigationAction decisionHandler:decisionHandler];
     } else {
+        WVJBMessage* msg2 = @{ @"event":@"WKNavigationActionPolicyAllow", @"error":@"false" };
+        [_base _log:@"track" json:msg2];
         decisionHandler(WKNavigationActionPolicyAllow);
     }
 }
