@@ -235,7 +235,9 @@ static int logMaxLength = 500;
     if (action == @"track") {
         WVJBMessage* msg = @{ @"track":json };
         WVJBResponseCallback responseCallback = NULL;
-        _logMessageHandler(msg, responseCallback);
+        if (_logMessageHandler != NULL) {
+            _logMessageHandler(msg, responseCallback);
+        }
     } else {
         if (![json isKindOfClass:[NSString class]]) {
             json = [self _serializeMessage:json pretty:YES];
